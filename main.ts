@@ -125,8 +125,15 @@ function farmSteps(p: any): string[] {
   ];
 }
 
+function resolveInputPath(): string {
+  // --input wins when given; otherwise the grader's input dir, then /input.
+  const flag = arg("--input", "");
+  if (flag) return resolve(flag);
+  if (process.env.MAKEFUN_INPUT_DIR) return resolve(join(process.env.MAKEFUN_INPUT_DIR, "snapshot.json"));
+  return "/input/snapshot.json";
+}
 function main(): void {
-  const inputPath = resolve(arg("--input", "/input/snapshot.json"));
+  const inputPath = resolveInputPath();
   const out = resolve(outDir());
   const snap = JSON.parse(readFileSync(inputPath, "utf-8"));
   const protocols: any[] = snap.protocols;
@@ -174,10 +181,14 @@ function main(): void {
   // dashboard/data.js — compact rows for the page (farm steps live in board.json, fetched).
   const compact = rows.map((r) => [r.rank, r.slug, r.name, r.category, r.chains, r.tvl_usd, r.change_7d, r.age_years, r.implied_value_usd, r.pre_token ? 1 : 0, r.on_watchlist ? 1 : 0, r.value_breakdown.category_multiple, Math.round(r.value_breakdown.size_dampener * 1000) / 1000, Math.round(r.value_breakdown.growth_factor * 1000) / 1000, Math.round(r.value_breakdown.age_factor * 1000) / 1000]);
   const dataJs = "window.RADAR_DATA=" + JSON.stringify({ as_of: snap.as_of, floor_usd: snap.floor_usd, rows: compact }) + ";\n";
-  writeFileSync(join(HERE, "dashboard", "data.js"), dataJs, "utf-8");
 
   // Copy dashboard + screenshots into /output.
   cpSync(join(HERE, "dashboard"), join(out, "dashboard"), { recursive: true });
+  // dashboard/data.js is generated output: write it ONLY into the output
+  // dir, never into the source folder (the grader runs with /bot read-only,
+  // so a write into HERE fails and exits 1). It overwrites the stale
+  // committed copy that cpSync just copied.
+  writeFileSync(join(out, "dashboard", "data.js"), dataJs, "utf-8");
   if (existsSync(join(HERE, "screenshots"))) {
     for (const f of readdirSync(join(HERE, "screenshots"))) {
       if (f.startsWith(".")) continue;
