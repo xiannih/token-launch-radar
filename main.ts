@@ -29,7 +29,7 @@
 // which labels every row pre-token and explains why token protocols are
 // excluded outright.
 
-import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { accessSync, constants, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildDossier } from "./vendor/makefun-board.ts";
@@ -132,6 +132,39 @@ function resolveInputPath(): string {
   if (process.env.MAKEFUN_INPUT_DIR) return resolve(join(process.env.MAKEFUN_INPUT_DIR, "snapshot.json"));
   return "/input/snapshot.json";
 }
+function ensureDir(dir: string): void {
+  // Create dir (and parents) when missing. An existing dir is fine, so a
+  // plain EEXIST is ignored. When creation is refused because the parent is
+  // not writable, the dir is still usable if it already exists and we can
+  // write into it; otherwise fail with a message that names the directory
+  // instead of a bare errno from deep inside the run.
+  try {
+    mkdirSync(dir, { recursive: true });
+  } catch (e: any) {
+    if (e && e.code === "EEXIST") return;
+    if (e && e.code === "EACCES" && existsSync(dir)) {
+      try {
+        accessSync(dir, constants.W_OK);
+        return;
+      } catch {
+        // Not writable: fall through to the clear error below.
+      }
+    }
+    throw new Error(`cannot create output directory ${dir}: ${e && e.message ? e.message : String(e)}`);
+  }
+}
+function copyPlainFiles(src: string, dest: string): void {
+  // Copy a directory's plain files one by one, skipping dot names and
+  // anything that is not a regular file. A whole-directory copy behaves
+  // differently across Node versions when the destination already exists,
+  // so the copy is spelled out file by file instead.
+  for (const name of readdirSync(src)) {
+    if (name.startsWith(".")) continue;
+    const from = join(src, name);
+    if (!statSync(from).isFile()) continue;
+    copyFileSync(from, join(dest, name));
+  }
+}
 function main(): void {
   const inputPath = resolveInputPath();
   const out = resolve(outDir());
@@ -171,9 +204,9 @@ function main(): void {
     if (rows[i].implied_value_usd > rows[i - 1].implied_value_usd) throw new Error("board not sorted by implied value");
   }
 
-  mkdirSync(out, { recursive: true });
-  mkdirSync(join(out, "dashboard"), { recursive: true });
-  mkdirSync(join(out, "screenshots"), { recursive: true });
+  ensureDir(out);
+  ensureDir(join(out, "dashboard"));
+  ensureDir(join(out, "screenshots"));
 
   // board.json — the full record.
   writeFileSync(join(out, "board.json"), JSON.stringify({ snapshot_as_of: snap.as_of, floor_usd: snap.floor_usd, watchlist_count: watchlist.length, rows }, null, 2) + "\n", "utf-8");
@@ -183,7 +216,7 @@ function main(): void {
   const dataJs = "window.RADAR_DATA=" + JSON.stringify({ as_of: snap.as_of, floor_usd: snap.floor_usd, rows: compact }) + ";\n";
 
   // Copy dashboard + screenshots into /output.
-  cpSync(join(HERE, "dashboard"), join(out, "dashboard"), { recursive: true });
+  copyPlainFiles(join(HERE, "dashboard"), join(out, "dashboard"));
   // dashboard/data.js is generated output: write it ONLY into the output
   // dir, never into the source folder (the grader runs with /bot read-only,
   // so a write into HERE fails and exits 1). It overwrites the stale
@@ -198,7 +231,11 @@ function main(): void {
   // Dossier, only once screenshots exist.
   const shots = existsSync(join(HERE, "screenshots")) ? readdirSync(join(HERE, "screenshots")).filter((f) => !f.startsWith(".")) : [];
   if (shots.length > 0) {
-    const dossier = buildDossier(out, { text_max_bytes: 65536 });
+    const dossier = buildDossier(out, {
+      text_max_bytes: 65536,
+      screenshots: { max: 4, max_bytes: 512 * 1024 },
+      dashboard: { max_files: 400, max_bytes: 4 * 1024 * 1024 },
+    });
     writeFileSync(join(out, "dossier.json"), dossier);
     console.log(`dossier.json written (${dossier.length} bytes)`);
   } else {
