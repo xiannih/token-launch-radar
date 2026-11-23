@@ -16,7 +16,7 @@
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts --input ../input/snapshot.json
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { boardIssue, buildRadar, dataScript, parseSnapshot } from './lib/model.ts';
@@ -49,20 +49,33 @@ if (!existsSync(inputFile)) {
 const out = arg('output', process.env.MAKEFUN_OUTPUT_DIR ?? '/output');
 
 const snapshot = parseSnapshot(readFileSync(inputFile, 'utf8'));
-const { board, radar } = buildRadar(snapshot);
+const { board, radar, meta } = buildRadar(snapshot);
 const issue = boardIssue(board, snapshot);
 if (issue !== null) {
   process.stderr.write(`token radar: the model wrote a board the gate refuses: ${issue}\n`);
   process.exit(1);
 }
 
+/**
+ * Write a file fresh: remove any file a previous run left behind first.
+ * A copied file keeps its source mode, and the grader stages /bot read-only
+ * (0444), so a file this program copied on an earlier run into the same
+ * /output is read-only — overwriting it in place would refuse the write.
+ * Removing it first needs only the directory to be writable, which /output
+ * is, so a second run into the same output works too.
+ */
+function writeFresh(path: string, data: string | Uint8Array): void {
+  if (existsSync(path)) unlinkSync(path);
+  writeFileSync(path, data);
+}
+
 mkdirSync(out, { recursive: true });
-writeFileSync(
+writeFresh(
   join(out, 'board.json'),
-  `${JSON.stringify({ snapshot_as_of: snapshot.as_of, floor_usd: snapshot.floor_usd, watchlist_count: snapshot.watchlist.length, rows: board }, null, 2)}\n`,
+  `${JSON.stringify({ snapshot_as_of: snapshot.as_of, floor_usd: snapshot.floor_usd, watchlist_count: snapshot.watchlist.length, model: meta, rows: board }, null, 2)}\n`,
 );
 const script = dataScript(radar);
-writeFileSync(join(out, 'data.js'), script);
+writeFresh(join(out, 'data.js'), script);
 
 /**
  * Copy one directory's regular files into `to`, skipping names that start
@@ -79,7 +92,14 @@ function copyFiles(from: string, to: string, skip: Set<string> = new Set()): str
     if (name.startsWith('.') || skip.has(name)) continue;
     const path = join(from, name);
     if (!statSync(path).isFile()) continue;
-    copyFileSync(path, join(to, name));
+    const dest = join(to, name);
+    // Remove a file an earlier run left behind first, then leave the copy
+    // writable: a copy keeps its source mode, so a copy from a read-only
+    // /bot is 0444, and overwriting it in place on a second run into the
+    // same /output would refuse the write.
+    if (existsSync(dest)) unlinkSync(dest);
+    copyFileSync(path, dest);
+    chmodSync(dest, 0o644);
     copied.push(name);
   }
   return copied;
@@ -90,7 +110,7 @@ function copyFiles(from: string, to: string, skip: Set<string> = new Set()): str
 // copy and written fresh: the committed copy is read-only in the grader,
 // and overwriting the copied file would fail.
 copyFiles(join(here, 'dashboard'), join(out, 'dashboard'), new Set(['data.js']));
-writeFileSync(join(out, 'dashboard', 'data.js'), script);
+writeFresh(join(out, 'dashboard', 'data.js'), script);
 const shots = copyFiles(join(here, 'screenshots'), join(out, 'screenshots'));
 if (shots.length < 3) {
   process.stderr.write(`token radar: screenshots/ holds ${shots.length} image${shots.length === 1 ? '' : 's'}: hand in 3, the board, a detail view and a filtered view\n`);
@@ -105,7 +125,7 @@ for (const name of shots) {
 
 // The dossier is written last, from exactly this /output, with the scorer's
 // own call: text_max_bytes alone, no other caps.
-writeFileSync(join(out, 'dossier.json'), buildDossier(out, { text_max_bytes: TEXT_MAX_BYTES }));
+writeFresh(join(out, 'dossier.json'), buildDossier(out, { text_max_bytes: TEXT_MAX_BYTES }));
 
 const top = board[0]!;
 process.stdout.write(
