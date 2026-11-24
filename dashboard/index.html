@@ -1,66 +1,14 @@
-<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8">
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Token Launch Radar — pre-token protocols ranked by fitted implied value</title>
-<link rel="stylesheet" href="app.css"></head>
+<title>Token Radar — every pre-token protocol, ranked by implied value</title>
+<link rel="stylesheet" href="app.css">
+</head>
 <body>
-<header class="top">
-  <div><p class="kicker">DEFI LLAMA SNAPSHOT &middot; <span id="asof"></span> &middot; FLOOR $50M</p>
-  <h1>Token Launch Radar</h1>
-  <p class="sub">Which pre-token protocol is worth farming next — and what to do about it. Every coefficient below is fitted from the snapshot's own launched protocols, and the fit is tested held-out twice.</p></div>
-  <div class="stats">
-    <div><b id="stRows">0</b><span>protocols ranked</span></div>
-    <div><b id="stWatch">0</b><span>watchlist covered</span></div>
-    <div><b id="stTop">—</b><span>top expected value</span></div>
-    <div><b id="stHold">—</b><span>hold-out miss, median</span></div>
-  </div>
-</header>
-<section class="method">
-  <h2>How the value is worked out — fitted, not guessed</h2>
-  <p><b>Expected value = TVL &times; category multiple &times; size &times; growth &times; age &times; token odds.</b>
-  The category multiple is the <b>median market-cap-per-TVL of launched protocols in the same category</b> (<span id="mGlobal"></span> across all of them), shrunk toward that global median for small samples.
-  The size term is a fitted log-log slope (<span id="mSize"></span>): big protocols trade at far lower multiples.
-  Growth is fitted too, and the snapshot says growing paid nothing (<span id="mGrowth"></span>), so it stays &times;1.00.
-  Age is fitted as well (<span id="mAge"></span> a year): younger protocols trade at higher multiples, so age is a small penalty, not a bonus.
-  Token odds is the share of the protocol's peers — same category, same age band — that already record a token (<span id="mOdds"></span> of all protocols have one).
-  The implied value is therefore an <b>expected</b> value: what a launch would be worth, times the chance a protocol like it launches at all.</p>
-  <p><b>Hold-out test.</b> The <span id="mFitN"></span> launched protocols with a positive market cap are split in half by slug; the terms are fitted on one half and used to predict the other's market caps.
-  Median miss <b><span id="mHoldA"></span>&times;</b> one way and <b><span id="mHoldB"></span>&times;</b> the other, against <b><span id="mBaseA"></span>&times;</b> and <b><span id="mBaseB"></span>&times;</b> for a global-median-only baseline.
-  The fit explains little — market-cap-per-TVL is noisy, and <span id="mZero"></span> launched protocols record a market cap of $0 or less and are left out of the fit entirely.
-  The board is a ranking by the fitted median, never a price forecast, and never a prediction of whether or when a token launches.</p>
-  <p>Protocols that already record a token are excluded outright — no penalty can place a $100B token protocol honestly below a $5M pre-token one on a value-ordered board. The excluded ones are listed below with their ratios, so the separation is visible.
-  Eligible means: no token recorded, not a wrapped, staked or bridged product, not an exchange, not a versioned copy.
-  A protocol here <b>records</b> no token — that is the snapshot's record, not proof it has none.</p>
-</section>
-<section class="tables">
-  <div class="panel"><h2>Fitted multiples by category</h2>
-  <table class="mini"><thead><tr><th>Category</th><th>Launched peers</th><th>Multiple</th><th>Token odds</th></tr></thead><tbody id="multRows"></tbody></table>
-  <p class="note">Multiple = shrunk median market-cap-per-TVL of launched peers. Odds = share of peers that already record a token.</p></div>
-  <div class="panel"><h2>Already trading — excluded from the board</h2>
-  <table class="mini"><thead><tr><th>Protocol</th><th>TVL</th><th>Market cap</th><th>mcap / TVL</th></tr></thead><tbody id="exRows"></tbody></table>
-  <p class="note">The twelve biggest already-trading protocols. They record a token, so they are not launch candidates — and their ratios are the data the multiples above are fitted from.</p></div>
-</section>
-<section class="controls">
-  <input id="q" type="search" placeholder="Search name or slug…" aria-label="Search">
-  <select id="cat" aria-label="Category"><option value="">All categories</option></select>
-  <select id="chain" aria-label="Chain"><option value="">All chains</option></select>
-  <select id="sort" aria-label="Sort">
-    <option value="value">Sort: expected value</option><option value="tvl">Sort: TVL</option>
-    <option value="growth">Sort: 7-day growth</option><option value="age">Sort: age</option><option value="odds">Sort: token odds</option><option value="name">Sort: name A–Z</option>
-  </select>
-  <label><input type="checkbox" id="preOnly" checked> Pre-token only</label>
-  <label><input type="checkbox" id="watchOnly"> Watchlist only</label>
-  <span id="count" class="count"></span>
-</section>
-<main>
-  <table><thead><tr>
-    <th data-k="rank">#</th><th data-k="name">Protocol</th><th data-k="category">Category</th>
-    <th data-k="chains">Chains</th><th data-k="tvl">TVL</th><th data-k="growth">7d</th>
-    <th data-k="age">Age</th><th data-k="odds">Token odds</th><th data-k="value">Expected value</th><th>Farm</th>
-  </tr></thead><tbody id="rows"></tbody></table>
-  <aside id="detail" class="detail"><p class="hint">Click any row for its detail view: value breakdown, token odds and a costed farm plan.</p></aside>
-</main>
-<footer><p>Snapshot: DefiLlama protocols, fetched 2026-11-14. Board covers every watchlist protocol. Farm plans are costed per protocol — gas at its first chain's rate, capital by TVL band — and never promise an airdrop, price or date.</p></footer>
-<script src="data.js"></script>
+<main id="board" aria-busy="true"></main>
+<script src="../data.js"></script>
 <script src="app.js"></script>
-</body></html>
+</body>
+</html>
