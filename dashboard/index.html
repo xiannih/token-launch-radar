@@ -1,13 +1,139 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Token Radar — every pre-token protocol, ranked by implied value</title>
+<title>Token Launch Radar — 758 protocols, ranked by implied launch value</title>
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
-<main id="board" aria-busy="true"></main>
+<header class="top">
+  <div>
+    <h1>Token Launch Radar</h1>
+    <p class="sub">What a token would be worth if each protocol launched one today — fitted from the snapshot's own live-token comps. Sealed DefiLlama snapshot, <span id="asof">14 Nov 2026</span>. No live data, no prediction of whether or when a token launches.</p>
+  </div>
+  <div class="badge">V7 · presentation + curator edition</div>
+</header>
+
+<section class="kpis" id="kpis" aria-label="Headline numbers">
+  <div class="kpi"><span class="kpi-num" id="kpi-total">—</span><span class="kpi-label">protocols on the board</span></div>
+  <div class="kpi"><span class="kpi-num" id="kpi-pretoken">—</span><span class="kpi-label">pre-token, ranked by value</span></div>
+  <div class="kpi"><span class="kpi-num" id="kpi-watchlist">—</span><span class="kpi-label">watchlist covered</span></div>
+  <div class="kpi"><span class="kpi-num" id="kpi-fit">—</span><span class="kpi-label">fitted size model (128 comps)</span></div>
+  <div class="kpi"><span class="kpi-num" id="kpi-blind">—</span><span class="kpi-label">blind-test gain over baseline</span></div>
+  <div class="kpi"><span class="kpi-num" id="kpi-farm">—</span><span class="kpi-label">farms worth doing</span></div>
+</section>
+
+<div class="notice" id="curator-notice" role="note">
+  <strong>Curator discount, new in V7:</strong> <span id="curator-text">—</span>
+  <a href="#method">Read the method ↓</a>
+</div>
+
+<section class="charts">
+  <figure class="chart-box">
+    <figcaption>Size against value — every pre-token protocol, and the 128 live-token comps the fit learned from</figcaption>
+    <div id="scatter" class="chart"></div>
+    <p class="chart-note">Log–log axes. Teal dots are pre-token protocols; grey dots are live-token comps (market cap vs TVL). Amber rings are curator rows, whose TVL sits inside other protocols and is discounted 0.5×.</p>
+  </figure>
+  <figure class="chart-box">
+    <figcaption>How the implied values are spread</figcaption>
+    <div id="dist" class="chart"></div>
+    <p class="chart-note">Histogram of implied launch values for the 198 ranked pre-token protocols (log bins). Most launches would be small; the tail is where the money is.</p>
+  </figure>
+</section>
+
+<section class="controls" aria-label="Board controls">
+  <input id="q" type="search" placeholder="Search name or slug…" aria-label="Search">
+  <select id="status" aria-label="Status">
+    <option value="all">All statuses</option>
+    <option value="pre-token">Pre-token (ranked)</option>
+    <option value="no-launch">No-launch group</option>
+    <option value="trading">Already trading</option>
+  </select>
+  <select id="category" aria-label="Category"><option value="all">All categories</option></select>
+  <select id="verdict" aria-label="Farm verdict">
+    <option value="all">Any farm verdict</option>
+    <option value="worth">Worth farming</option>
+    <option value="marginal">Marginal</option>
+    <option value="low">Low value</option>
+  </select>
+  <label class="check"><input id="curator-only" type="checkbox"> Curator rows only</label>
+  <label class="check"><input id="watchlist-only" type="checkbox"> Watchlist only</label>
+  <select id="sort" aria-label="Sort by">
+    <option value="value">Sort: implied value</option>
+    <option value="tvl">Sort: TVL</option>
+    <option value="ev">Sort: $/hour farming</option>
+    <option value="odds">Sort: launch odds</option>
+  </select>
+</section>
+
+<p class="showing" id="showing">—</p>
+
+<table class="board" id="board-table">
+  <thead>
+    <tr>
+      <th>#</th><th>Protocol</th><th>Category</th><th>TVL</th><th>Implied value</th>
+      <th>80% range</th><th>Odds</th><th>Farm</th><th>$/hour</th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<section class="detail" id="detail" hidden>
+  <div class="detail-head">
+    <h2 id="d-name">—</h2>
+    <button id="d-close" type="button">Close ×</button>
+  </div>
+  <div class="detail-grid" id="d-grid"></div>
+  <h3>Farm plan — costed to the dollar</h3>
+  <ol class="steps" id="d-steps"></ol>
+  <p class="detail-note" id="d-note"></p>
+</section>
+
+<section class="method" id="method">
+  <h2>How the numbers are made</h2>
+  <p class="method-lede">One formula produces every implied value on this board. The fit is done at run time from the snapshot's own 128 live-token protocols; nothing is hardcoded per name. The full record — formula, priors, calibration, audit and limits — is in <strong>METHOD.md</strong>, shipped with this dashboard.</p>
+  <div class="method-cols">
+    <div>
+      <h3>The value model</h3>
+      <p id="m-formula">—</p>
+      <h3>Blind tests — the model against a naive baseline</h3>
+      <table class="mini" id="m-blind">
+        <thead><tr><th>Test</th><th>Model miss</th><th>Baseline miss</th><th>Gain</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="small">Median miss is how far the typical prediction lands from the truth, in multiples. The fit explains little — size alone carries an R² near 0.17 — and the ranges below say so plainly.</p>
+    </div>
+    <div>
+      <h3>Launch odds by age band</h3>
+      <table class="mini" id="m-odds">
+        <thead><tr><th>Age</th><th>Protocols</th><th>Launched</th><th>Odds</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="small">Odds are the share of protocols in the age band that already launched — a peer rate, not a forecast. Protocols with no listing date get the global rate.</p>
+      <h3>Curator discount — before and after</h3>
+      <table class="mini" id="m-curator">
+        <thead><tr><th>Protocol</th><th>Before</th><th>After</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="small">Curator TVL is nested inside the protocols it allocates to, so it is counted twice. Every pre-token row in the Risk Curators and Onchain Capital Allocator categories is halved — a structural rule by category, never by name.</p>
+    </div>
+  </div>
+  <h3>What this radar cannot do</h3>
+  <ul class="limits">
+    <li>The fit is weak: the median prediction is off by 3.4×, and the 80% range on any row spans ×11.4 either way. Treat every value as an order of magnitude, not a price.</li>
+    <li>Odds are backward-looking peer rates. They say how often protocols of that age have launched, not whether this one will.</li>
+    <li>Gas prices and the farmer's share of a launch are assumptions, stated in METHOD.md — change them and the farm verdicts move.</li>
+    <li>The curator discount is a structural prior, not a fitted number. It is the one judgement call in the model, and it is shown, not hidden.</li>
+  </ul>
+  <h3>Self-checks — the program grades its own output</h3>
+  <ul class="checks" id="m-checks"></ul>
+</section>
+
+<footer>
+  <p>Built from the sealed DefiLlama snapshot (as_of <span id="asof2">14 Nov 2026</span>, 758 protocols, watchlist floor $50,000,000). The snapshot carries circulating market cap only, no FDV — every multiple here is mcap/TVL, not FDV/TVL. A protocol that records no token may still have one its DefiLlama record does not carry.</p>
+</footer>
+
 <script src="../data.js"></script>
 <script src="app.js"></script>
 </body>

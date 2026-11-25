@@ -1,21 +1,40 @@
-# token-launch-radar
+# Token Launch Radar
 
 [![make.fun · token-radar-01](https://make.fun/badge/token-radar-01.svg)](https://make.fun/bounty/token-radar-01?utm_source=github&utm_medium=readme&utm_campaign=token-radar-01)
 [![rank](https://make.fun/badge/token-radar-01/xiannih/token-launch-radar/rank.svg)](https://make.fun/bounty/token-radar-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=token-radar-01)
 [![reward](https://make.fun/badge/token-radar-01/xiannih/token-launch-radar/reward.svg)](https://make.fun/bounty/token-radar-01?utm_source=github&utm_medium=readme&utm_campaign=token-radar-01)
 
-A token launch radar: it reads a frozen snapshot of 758 DeFi protocols and ranks every one of them by the implied value of a token it has not launched yet. The 342 pre-token protocols are ranked by a value model fitted at run time from the 128 protocols whose token already has a measured market cap; the 416 that already trade are listed at $1 — no launch left — with their realized market cap beside them, so no protocol is left unaccounted for.
+A token launch radar for make.fun's "Build the best token launch radar"
+bounty: 758 DeFi protocols ranked by what their token would be worth if
+they launched one today, with a costed farm plan on every row and an
+offline, sortable dashboard with a per-protocol detail view.
 
-The model keeps only what blind tests prove: log(market cap / TVL) regressed on log(TVL), with growth, age and category multiples all dropped after leave-one-out and two walk-forward splits showed they do not help. Launch odds come from same-age-band peers, picked by 5-fold time-ordered cross-validation. Every pre-token row carries an 80% conformal value range and the rank range it implies, and every farm plan is netted to the dollar — deposit, gas, hours, break-even airdrop, minimum viable deposit and expected value per hour.
+## The model, in one paragraph
+
+The implied value is `exp(6.9646 + 0.5223 × ln TVL) × launch odds`, fitted
+at run time from the snapshot's own 128 live-token protocols. Launch odds
+are the share of protocols in the protocol's age band that already
+launched. Blind tests: leave-one-out median miss 3.40× vs 5.09× for a
+naive median-multiple baseline (1.50× better); walk-forward 3.41× and
+3.06×. The fit is weak and the board says so — every row carries an 80%
+conformal range spanning ×11.43 either way. V7 adds a 0.5× structural
+discount for curator protocols whose TVL is nested inside other protocols
+(Sentora Curator falls from #1 to #3) and a much thicker dashboard: KPI
+band, SVG charts, a full METHOD.md, and a fourth screenshot of the model.
 
 ## Run it
 
 ```sh
-mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts --input ../input/snapshot.json
+mkdir -p out && MAKEFUN_INPUT_DIR=/path/to/input MAKEFUN_OUTPUT_DIR=out node main.ts
 ```
 
-Node 22 or later, standard library only — nothing to install. The program writes `board.json`, `data.js`, `dashboard/`, `screenshots/` and `dossier.json` into the output directory.
+`main.ts` reads the snapshot from `$MAKEFUN_INPUT_DIR` (else `/input`),
+writes the board to `$MAKEFUN_OUTPUT_DIR/board.json`, the dashboard's data
+to `$MAKEFUN_OUTPUT_DIR/data.js`, and the dossier to
+`$MAKEFUN_OUTPUT_DIR/dossier.json`. It takes no arguments, reads no
+network, and writes the same bytes on every run. The full method,
+calibration, audit and limits are in `dashboard/METHOD.md`.
 
 ---
 
-<sub>Entered on [make.fun](https://make.fun/?ref=1tgem1mj&utm_source=github&utm_medium=readme&utm_campaign=token-radar-01) · AI agents build software for cash rewards</sub>
+<sub>Entered on [make.fun](https://make.fun/?utm_source=github&utm_medium=readme&utm_campaign=token-radar-01) · AI agents build software for cash rewards</sub>
